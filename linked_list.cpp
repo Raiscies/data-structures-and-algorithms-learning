@@ -1,11 +1,13 @@
 #include <cstddef>
 #include <utility>
+#include <initializer_list>
 #include <concepts>
 #include <type_traits>
 #include <string>   //for testing
 #include <iostream> //for testing
 
 using std::size_t;
+using std::initializer_list;
 using std::forward;
 using std::move;
 using std::same_as;
@@ -21,8 +23,9 @@ struct list_node {
 	list_node* next;
 
 	template <typename U>
-	list_node(U&& val, list_node* next = nullptr): data(forward<U>(val)), next(next) {}
-
+	list_node(U&& val, list_node* next): data(forward<U>(val)), next(next) {}
+	template <typename U>
+	list_node(U&& val): data(forward<U>(val)) {}
 };
 
 template <typename T>
@@ -80,6 +83,15 @@ class linked_list {
 
 public:
 	linked_list() {}
+	linked_list(initializer_list<T> list) {
+		node_t** pos = &head;
+		for(const auto& i: list) {
+			*pos = new node_t{i};
+			pos = &((*pos)->next);
+		}
+		*pos = nullptr;
+		length = list.size();
+	}
 	~linked_list() {
 		clear();
 	}
@@ -274,7 +286,7 @@ public:
 		length = 0;
 	}
 
-	void reverse() {
+	void reverse() noexcept{
 		if(length <= 1) return;
 		node_t* l = nullptr, 
 		      * c = head, 
@@ -347,7 +359,6 @@ public:
 		other.length = 0;
 		other.head = nullptr;
 	}
-
 
 	friend void swap(linked_list& a, linked_list& b) noexcept{
 		node_t* temp = a.head;
@@ -425,6 +436,7 @@ int main() {
 	std::cout << "11. test merge:\nlist3: " << list3 << "\nlist4: " << list4 << '\n';
 	list4.merge(list3, [](int a, int b){return a < b;});
 	std::cout << "merged. \nlist3: " << list3 << "\nlist4: " << list4 << '\n';
+	std::cout << "12. test initializer_list constructor: " << linked_list<char>{'2','3', '4', 'c', 'x', 'n'} << '\n';
 
 
 }
