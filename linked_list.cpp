@@ -7,15 +7,20 @@
 using std::size_t;
 using std::forward;
 using std::move;
+using std::same_as;
 using std::is_convertible_v;
 
-namespace rais::study{
+namespace rais::study {
 
 
 template <typename T>
 struct list_node {
 	T data;
-	list_node* next = nullptr;
+	list_node* next;
+	
+	template <typename U>
+	list_node(U&& val, list_node* next = nullptr): data(forward<U>(val)), next(next) {}
+
 };
 
 template <typename T>
@@ -37,6 +42,9 @@ class linked_list {
 		iterator operator++(int) {auto temp = iterator{it}; it = it->next; return temp;}
 		bool operator==(const iterator& other) const noexcept{return it == other.it; }
 		bool operator!=(const iterator& other) const noexcept{return it != other.it; }
+
+		node_t* get_ptr() noexcept{return it; }
+		const node_t* get_ptr() const noexcept{return it; }
 	};
 
 	struct const_iterator{
@@ -50,7 +58,9 @@ class linked_list {
 		const_iterator& operator++() {it = it->next; return *this;}
 		const_iterator operator++(int) {auto temp = const_iterator{it}; it = it->next; return temp;}
 		bool operator==(const const_iterator& other) const noexcept{return it == other.it; }
-		bool operator!=(const const_iterator& other) const noexcept{return it != other.it; }	
+		bool operator!=(const const_iterator& other) const noexcept{return it != other.it; }
+
+		const node_t* get_ptr() const noexcept{return it; }
 	};
 	using iterator_t = iterator;
 	using const_iterator_t = const_iterator;
@@ -76,7 +86,7 @@ public:
 		node_t** pps = &head,      //point to a pointer that point to self
 		       * po  = other.head; //point other 
 		while(po != nullptr) {
-			*pps = new node_t{po->data/* copy */};
+			*pps = new node_t{po->data/* copy */, nullptr};
 			pps = &((*pps)->next);
 			po = po->next;
 		}
@@ -94,7 +104,7 @@ public:
 		node_t** pps = &head,      //point to a pointer that point to self
 		       * po  = other.head; //point other 
 		while(po != nullptr) {
-			*pps = new node_t{po->data/* copy */};
+			*pps = new node_t{po->data/* copy */, nullptr};
 			pps = &((*pps)->next);
 			po = po->next;
 		}
@@ -114,10 +124,17 @@ public:
 
 	size_t size() const noexcept{return length; }
 
-	iterator_t begin() noexcept{return {head};    }
-	iterator_t end()   noexcept{return {nullptr}; }
-	const_iterator_t begin() const noexcept{return {head};    }
-	const_iterator_t end()   const noexcept{return {nullptr}; }
+	//no zero length check
+	T& front() {return head->data; }
+	const T& front() const {return head->data; }
+	T& back() {return tail()->data; }
+	const T& back() const{return tail()->data; }
+
+
+	iterator_t begin()              noexcept{return {head};    }
+	iterator_t end()                noexcept{return {nullptr}; }
+	const_iterator_t begin()  const noexcept{return {head};    }
+	const_iterator_t end()    const noexcept{return {nullptr}; }
 	const_iterator_t cbegin() const noexcept{return {head};    }
 	const_iterator_t cend()   const noexcept{return {nullptr}; }
 
@@ -127,10 +144,10 @@ public:
 	template <typename U> 
 	linked_list& push(U&& val) requires is_convertible_v<U, T> {
 		auto pos = tail();
-		if(!pos) head = new node_t{forward<U>(val)};
+		if(!pos) head = new node_t{forward<U>(val), nullptr};
 		else {
 			//where tail != nullptr
-			pos->next = new node_t{forward<U>(val)};
+			pos->next = new node_t{forward<U>(val), nullptr};
 		}
 		length++;
 		return *this;
@@ -139,7 +156,7 @@ public:
 	template <typename U>
 	linked_list& unshift(U&& val) requires is_convertible_v<U, T> {
 		if(!head) {
-			head = new node_t{forward<U>(val)};
+			head = new node_t{forward<U>(val), nullptr};
 		}else {
 			node_t* temp = head;
 			head = new node_t{forward<U>(val), temp};
@@ -156,6 +173,17 @@ public:
 		node_t** pos = &head;
 		for(size_t i = 0; i < index; i++) pos = &((*pos)->next);
 		*pos = new node_t{forward<U>(val), *pos};
+		length++;
+		return *this;
+	}
+
+	template <typename U>
+	linked_list& insert_after(const iterator_t& it, U&& val) {
+		//insert val after the data that it points
+		//no before_begin() / before_cbegin() method, 
+		//it means it's impossible to insert a element to the head
+		//no iterator validity check
+		it.get_ptr()->next = new node_t{*it, it.get_ptr()->next};
 		length++;
 		return *this;
 	}
@@ -199,6 +227,17 @@ public:
 		length--;
 		return true;
 	}
+
+
+	void erase_after(const iterator_t& it) {
+		//no before_begin() / before_cbegin() method, 
+		//it means it's impossible to erase a element of the head
+		//no iterator validity check, therefore it's useless to return whether the operation is satisfied.
+		node_t* afters = it.get_ptr()->next->next;
+		delete it.get_ptr()->next;
+		it.get_ptr()->next = afters;
+		length--;
+	}	
 
 	T shift() {
 		//no zero length check
