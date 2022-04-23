@@ -291,7 +291,7 @@ public:
 	}
 
 	template <typename U>
-	void merge(U&& other) requires same_as<remove_reference_t<U>, linked_list> {
+	void merge(U&& other) requires same_as<remove_reference_t<U>, linked_list> && requires(T a, T b){a < b;} {
 		//merge two 'sorted' linked_list to one, by increasing order
 		if(this == &other) return;
 		node_t** ppnew = &head,
@@ -316,8 +316,38 @@ public:
 		length += other.length;
 		other.length = 0;
 		other.head = nullptr;
-
 	}
+
+	template <typename U, typename CompareT>
+	void merge(U&& other, CompareT&& comp) //if a < b in some order, then comp(a, b) should returns true, otherwise returns false.
+	requires same_as<remove_reference_t<U>, linked_list> && requires(const T& a, const T& b){{comp(a, b)}->same_as<bool>;} {
+		//merge two 'sorted' linked_list to one, by increasing order
+		if(this == &other) return;
+		node_t** ppnew = &head,
+		       * ps = head,
+		       * po = other.head;
+		while(ps != nullptr && po != nullptr) {
+			// if(po->data < ps->data) {
+			if( comp(static_cast<const T&>(po->data), static_cast<const T&>(ps->data)) ) {
+				//merge po
+				*ppnew = po;
+				po = po->next;
+			}else {
+				*ppnew = ps;
+				ps = ps->next;
+			}
+			ppnew = &((*ppnew)->next);
+		}
+		if(ps == nullptr) {
+			*ppnew = po;
+		}else {
+			*ppnew = ps;
+		}
+		length += other.length;
+		other.length = 0;
+		other.head = nullptr;
+	}
+
 
 	friend void swap(linked_list& a, linked_list& b) noexcept{
 		node_t* temp = a.head;
@@ -393,7 +423,7 @@ int main() {
 	list3.push(1).push(4).push(7).push(10).push(14).push(22).push(25).push(31);
 	list4.push(1).push(2).push(10).push(10).push(11).push(15).push(20).push(26);
 	std::cout << "11. test merge:\nlist3: " << list3 << "\nlist4: " << list4 << '\n';
-	list4.merge(list3);
+	list4.merge(list3, [](int a, int b){return a < b;});
 	std::cout << "merged. \nlist3: " << list3 << "\nlist4: " << list4 << '\n';
 
 
