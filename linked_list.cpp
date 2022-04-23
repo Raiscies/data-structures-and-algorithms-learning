@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <utility>
 #include <concepts>
+#include <type_traits>
 #include <string>   //for testing
 #include <iostream> //for testing
 
@@ -9,6 +10,7 @@ using std::forward;
 using std::move;
 using std::same_as;
 using std::is_convertible_v;
+using std::remove_reference_t;
 
 namespace rais::study {
 
@@ -17,7 +19,7 @@ template <typename T>
 struct list_node {
 	T data;
 	list_node* next;
-	
+
 	template <typename U>
 	list_node(U&& val, list_node* next = nullptr): data(forward<U>(val)), next(next) {}
 
@@ -126,7 +128,7 @@ public:
 
 	//no zero length check
 	T& front() {return head->data; }
-	const T& front() const {return head->data; }
+	const T& front() const{return head->data; }
 	T& back() {return tail()->data; }
 	const T& back() const{return tail()->data; }
 
@@ -288,6 +290,35 @@ public:
 
 	}
 
+	template <typename U>
+	void merge(U&& other) requires same_as<remove_reference_t<U>, linked_list> {
+		//merge two 'sorted' linked_list to one, by increasing order
+		if(this == &other) return;
+		node_t** ppnew = &head,
+		       * ps = head,
+		       * po = other.head;
+		while(ps != nullptr && po != nullptr) {
+			if(po->data < ps->data) {
+				//merge po
+				*ppnew = po;
+				po = po->next;
+			}else {
+				*ppnew = ps;
+				ps = ps->next;
+			}
+			ppnew = &((*ppnew)->next);
+		}
+		if(ps == nullptr) {
+			*ppnew = po;
+		}else {
+			*ppnew = ps;
+		}
+		length += other.length;
+		other.length = 0;
+		other.head = nullptr;
+
+	}
+
 	friend void swap(linked_list& a, linked_list& b) noexcept{
 		node_t* temp = a.head;
 		size_t temp_len = a.length;
@@ -357,5 +388,13 @@ int main() {
 	list2.push("this is from list2");
 	swap(list, list2);
 	std::cout << "list: " << list << '\n' << "list2: " << list2 << '\n';
+	// test merge
+	linked_list<int> list3, list4;
+	list3.push(1).push(4).push(7).push(10).push(14).push(22).push(25).push(31);
+	list4.push(1).push(2).push(10).push(10).push(11).push(15).push(20).push(26);
+	std::cout << "11. test merge:\nlist3: " << list3 << "\nlist4: " << list4 << '\n';
+	list4.merge(list3);
+	std::cout << "merged. \nlist3: " << list3 << "\nlist4: " << list4 << '\n';
+
 
 }
