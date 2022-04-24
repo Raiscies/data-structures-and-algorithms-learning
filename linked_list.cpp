@@ -10,6 +10,7 @@
 using std::size_t;
 using std::initializer_list;
 using std::less;
+using std::less_equal;
 using std::forward;
 using std::move;
 using std::same_as;
@@ -158,7 +159,7 @@ public:
 	const_iterator_t cbegin() const noexcept{return {head};    }
 	const_iterator_t cend()   const noexcept{return {nullptr}; }
 
-	bool empty() const noexcept{return !head; }
+	bool is_empty() const noexcept{return !head; }
 
 
 	template <typename U> 
@@ -372,7 +373,7 @@ public:
 				//merge the group, and point to next group
 				pos = merge_nodes(pos, mid, to, comp);
 				//it's an error: 
-				//pos = to, because where to might be invalidated. 
+				//pos = to; because where 'to' might be invalidated. 
 			}
 			//incomplete group merging
 			if((length % group_size) > merge_size) {
@@ -388,8 +389,15 @@ public:
 		}
 	}
 
-	bool is_sorted() {
-		return false;
+	template <typename CompareT = less_equal<T>> //where CompareT should be less_equal<T> to match sort(less<T>{})
+	bool is_sorted(CompareT&& comp = {}) 
+	requires requires(const T& a, const T& b){{comp(a, b)}->same_as<bool>;}  {
+		node_t* pos = head;
+		while(pos->next != nullptr) {
+			if( !comp(pos->data, pos->next->data) ) return false; 
+			pos = pos->next;
+		}
+		return true;
 	}
 
 	friend void swap(linked_list& a, linked_list& b) noexcept{
@@ -549,9 +557,9 @@ int main() {
 	std::cout << "12. test initializer_list constructor: " << linked_list<char>{'2','3', '4', 'c', 'x', 'n'} << "\n\n";
 	auto list5 = linked_list<int>{99, 7, 3, 5, 7, 2, 2, 34, 53, 53, 12, 42, 94, 53, 81, 1, 4, 9};
 	std::cout << "13. test sort: \nbefore sort: " << list5 << '\n';
-	list5.sort(std::greater<int>{});
+	list5.sort();
 	std::cout << " after sort: " << list5 << '\n';
-
+	std::cout << "14. test is_sorted: " << std::boolalpha << list5.is_sorted() << '\n';
 
 
 
