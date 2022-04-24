@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <utility>
 #include <initializer_list>
+#include <functional>
 #include <concepts>
 #include <type_traits>
 #include <string>   //for testing
@@ -8,6 +9,7 @@
 
 using std::size_t;
 using std::initializer_list;
+using std::less;
 using std::forward;
 using std::move;
 using std::same_as;
@@ -302,15 +304,17 @@ public:
 
 	}
 
-	template <typename U>
-	void merge(U&& other) requires same_as<remove_reference_t<U>, linked_list> && requires(T a, T b){a < b;} {
+	template <typename ListT, typename CompareT = less<T>>
+	void merge(ListT&& other, CompareT&& comp = {}) //if a < b in some order, then comp(a, b) should returns true, otherwise returns false.
+	requires same_as<remove_reference_t<ListT>, linked_list> && requires(const T& a, const T& b){{comp(a, b)}->same_as<bool>;} {
 		//merge two 'sorted' linked_list to one, by increasing order
 		if(this == &other) return;
 		node_t** ppnew = &head,
 		       * ps = head,
 		       * po = other.head;
 		while(ps != nullptr && po != nullptr) {
-			if(po->data < ps->data) {
+			// if(po->data < ps->data) {
+			if( comp(po->data, ps->data) ) {
 				//merge po
 				*ppnew = po;
 				po = po->next;
@@ -330,34 +334,56 @@ public:
 		other.head = nullptr;
 	}
 
-	template <typename U, typename CompareT>
-	void merge(U&& other, CompareT&& comp) //if a < b in some order, then comp(a, b) should returns true, otherwise returns false.
-	requires same_as<remove_reference_t<U>, linked_list> && requires(const T& a, const T& b){{comp(a, b)}->same_as<bool>;} {
-		//merge two 'sorted' linked_list to one, by increasing order
-		if(this == &other) return;
-		node_t** ppnew = &head,
-		       * ps = head,
-		       * po = other.head;
-		while(ps != nullptr && po != nullptr) {
-			// if(po->data < ps->data) {
-			if( comp(static_cast<const T&>(po->data), static_cast<const T&>(ps->data)) ) {
-				//merge po
-				*ppnew = po;
-				po = po->next;
-			}else {
-				*ppnew = ps;
-				ps = ps->next;
+	//using merge sort to sort linked_list, inplace, and stable.
+	template <typename CompareT = less<T>>
+	void sort(CompareT&& comp = {}) 
+	requires requires(const T& a, const T& b){{comp(a, b)}->same_as<bool>;}  {
+		if(length <= 1) return;
+
+		node_t** pos = &head;
+
+		//first sort
+		// if((*pos)->next->data < (*pos)->data) {
+		if( comp( (*pos)->next->data, (*pos)->data ) ) {
+			swap_nodes<false>(*pos, (*pos)->next);
+		}	
+		for(size_t i = 1; i < length / 2; i++) {
+			pos = &((*pos)->next->next);
+			// if((*pos)->next->data < (*pos)->data) {
+			if( comp( (*pos)->next->data, (*pos)->data ) ) {	
+				swap_nodes<false>(*pos, (*pos)->next);
 			}
-			ppnew = &((*ppnew)->next);
 		}
-		if(ps == nullptr) {
-			*ppnew = po;
-		}else {
-			*ppnew = ps;
+
+		//sort and merge
+		//O( log2(N) )
+		size_t merge_size = 2, group_size = 4;
+		for(; group_size <= length; merge_size = group_size, group_size *= 2) {
+			//O( N )
+			pos = &head; //reset pos
+			//complete groups merging
+			for(size_t group = 0; group < (length / group_size); group++) {
+				node_t** mid = next_n<false>(pos, merge_size),
+				      ** to  = next_n<false>(mid, merge_size);
+				merge_nodes(pos, mid, to, comp);
+				pos = to; //point to next group
+			}
+			//incomplete group merging
+			if((length % group_size) > merge_size) {
+				node_t** mid = next_n<false>(pos, merge_size);
+				merge_nodes(pos, mid, next_n<true>(mid, merge_size)/*this might out of range*/, comp);
+			}
 		}
-		length += other.length;
-		other.length = 0;
-		other.head = nullptr;
+		if(length - merge_size > 0) {
+			//last merge
+			//where list contains a complete group and a incomplete group
+			node_t** mid = next_n<false>(&head, merge_size);
+			merge_nodes(&head, mid, next_n<true>(mid, merge_size), comp);
+		}
+	}
+
+	bool is_sorted() {
+		return false;
 	}
 
 	friend void swap(linked_list& a, linked_list& b) noexcept{
@@ -367,6 +393,79 @@ public:
 		a.length = b.length;
 		b.head = temp;
 		b.length = temp_len;
+	}
+
+private:
+	template <bool null_check = true>
+	static node_t** next_n(node_t** pos, size_t n) noexcept(null_check) {
+		//advance pos n times
+		for(size_t i = 0; i < n; i++) {
+			if constexpr(null_check) {
+				if(*pos == nullptr) return pos;
+			}
+			pos = &((*pos)->next);
+		}
+		return pos;
+	}
+
+	template <bool null_check = true>
+	static void swap_nodes(node_t*& a, node_t*& b) noexcept(null_check) {
+		if constexpr(null_check) {
+			if(a == nullptr) {
+				if(b == nullptr) return;
+				a = b;
+				b = b->next;
+				a->next = nullptr;
+				return;
+			}
+			if(b = nullptr) {
+				b = a;
+				a = a->next;
+				b->next = nullptr;
+				return;	
+			}
+		} // null_check
+
+		//it works well when a == b or a == b->next or etc.
+		//swap two node
+		node_t* temp = a;
+		a = b;
+		b = temp;
+		//swap two nodes' next nodes
+		temp = a->next;
+		a->next = b->next;
+		b->next = temp;
+	}
+
+	template <typename CompareT = less<T>>
+	static void merge_nodes(node_t** from, node_t** mid, node_t** to, CompareT&& comp = {}) 
+	requires requires(const T& a, const T& b){{comp(a, b)}->same_as<bool>;} {
+		//[from, mid) is a ordered seq, [mid, to) is also a ordered seq;
+		//merge these two seqs. 
+		//assume that |index(from) - index(mid)| >= 2 and
+		//            |index(mid)  - index(to) | >= 1
+		node_t** pos = from,
+		       * pa = *from, 
+		       * pb = *mid;
+		while(pa != *mid and pb != *to) {
+			// pb->data < pa->data
+			if( comp(pb->data, pa->data) ) {
+				*pos = pb;
+				pb = pb->next;
+			}else {
+				*pos = pa;
+				pa = pa->next;
+			}
+			pos = &((*pos)->next);
+		}
+		
+		if(pa == *mid) {
+			*pos = pb;
+		}else {
+			//pb == to
+			*mid = *to;
+			*pos = pa;
+		}
 	}
 
 
@@ -391,6 +490,7 @@ std::ostream& operator<<(std::ostream& os, const linked_list<DataT>& list) {
 using namespace rais::study;
 
 int main() {
+	std::ios::sync_with_stdio();
 	linked_list<std::string> list;
 	// test push
 	list.push("1. Test push");
@@ -436,7 +536,12 @@ int main() {
 	std::cout << "11. test merge:\nlist3: " << list3 << "\nlist4: " << list4 << '\n';
 	list4.merge(list3, [](int a, int b){return a < b;});
 	std::cout << "merged. \nlist3: " << list3 << "\nlist4: " << list4 << '\n';
-	std::cout << "12. test initializer_list constructor: " << linked_list<char>{'2','3', '4', 'c', 'x', 'n'} << '\n';
+	std::cout << "12. test initializer_list constructor: " << linked_list<char>{'2','3', '4', 'c', 'x', 'n'} << "\n\n";
+	auto list5 = linked_list<int>{7, 3, 5, 7, 2, 2, 34, 53, 53, 12, 42, 94, 53, 81, 1, 4, 9};
+	std::cout << "13. test sort: \nbefore sorting: " << list5 << '\n';
+	list5.sort(std::greater<int>{});
+	std::cout << " after sorting: " << list5 << '\n';
+
 
 
 }
