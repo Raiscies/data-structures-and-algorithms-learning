@@ -32,6 +32,8 @@ struct list_node {
 
 template <typename T>
 class linked_list {
+public:
+
 	using element_t = T;
 	using node_t = list_node<T>;
 
@@ -71,6 +73,8 @@ class linked_list {
 	};
 	using iterator_t = iterator;
 	using const_iterator_t = const_iterator;
+
+private:
 
 	node_t* head = nullptr;
 	size_t length = 0;
@@ -365,8 +369,10 @@ public:
 			for(size_t group = 0; group < (length / group_size); group++) {
 				node_t** mid = next_n<false>(pos, merge_size),
 				      ** to  = next_n<false>(mid, merge_size);
-				merge_nodes(pos, mid, to, comp);
-				pos = to; //point to next group
+				//merge the group, and point to next group
+				pos = merge_nodes(pos, mid, to, comp);
+				//it's an error: 
+				//pos = to, because where to might be invalidated. 
 			}
 			//incomplete group merging
 			if((length % group_size) > merge_size) {
@@ -374,7 +380,7 @@ public:
 				merge_nodes(pos, mid, next_n<true>(mid, merge_size)/*this might out of range*/, comp);
 			}
 		}
-		if(length - merge_size > 0) {
+		if(length > merge_size) {
 			//last merge
 			//where list contains a complete group and a incomplete group
 			node_t** mid = next_n<false>(&head, merge_size);
@@ -438,8 +444,9 @@ private:
 	}
 
 	template <typename CompareT = less<T>>
-	static void merge_nodes(node_t** from, node_t** mid, node_t** to, CompareT&& comp = {}) 
+	static node_t** merge_nodes(node_t** from, node_t** mid, node_t** to, CompareT&& comp = {}) 
 	requires requires(const T& a, const T& b){{comp(a, b)}->same_as<bool>;} {
+		//returns the new seq's tail ptr ptr.
 		//[from, mid) is a ordered seq, [mid, to) is also a ordered seq;
 		//merge these two seqs. 
 		//assume that |index(from) - index(mid)| >= 2 and
@@ -458,14 +465,17 @@ private:
 			}
 			pos = &((*pos)->next);
 		}
-		
+
 		if(pa == *mid) {
 			*pos = pb;
+			return to;  //return new seq tail
 		}else {
-			//pb == to
+			//pb == *to
 			*mid = *to;
 			*pos = pa;
+			return mid; //return new seq tail
 		}
+
 	}
 
 
@@ -537,10 +547,11 @@ int main() {
 	list4.merge(list3, [](int a, int b){return a < b;});
 	std::cout << "merged. \nlist3: " << list3 << "\nlist4: " << list4 << '\n';
 	std::cout << "12. test initializer_list constructor: " << linked_list<char>{'2','3', '4', 'c', 'x', 'n'} << "\n\n";
-	auto list5 = linked_list<int>{7, 3, 5, 7, 2, 2, 34, 53, 53, 12, 42, 94, 53, 81, 1, 4, 9};
-	std::cout << "13. test sort: \nbefore sorting: " << list5 << '\n';
+	auto list5 = linked_list<int>{99, 7, 3, 5, 7, 2, 2, 34, 53, 53, 12, 42, 94, 53, 81, 1, 4, 9};
+	std::cout << "13. test sort: \nbefore sort: " << list5 << '\n';
 	list5.sort(std::greater<int>{});
-	std::cout << " after sorting: " << list5 << '\n';
+	std::cout << " after sort: " << list5 << '\n';
+
 
 
 
