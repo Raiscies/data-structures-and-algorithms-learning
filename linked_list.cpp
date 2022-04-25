@@ -28,9 +28,11 @@ struct list_node {
 	T data;
 	list_node* next;
 
-	template <typename U>
+	template <typename U> 
+	requires convertible_to<U, T>
 	list_node(U&& val, list_node* next): data(forward<U>(val)), next(next) {}
 	template <typename U>
+	requires convertible_to<U, T>
 	list_node(U&& val): data(forward<U>(val)) {}
 };
 
@@ -205,6 +207,7 @@ public:
 	}
 
 	template <typename U>
+	requires convertible_to<U, T>
 	linked_list& insert_after(const iterator_t& it, U&& val) {
 		//insert val after the data that it points
 		//no before_begin() / before_cbegin() method, 
@@ -317,7 +320,8 @@ public:
 
 	template <typename ListT, typename CompareT = less<T>>
 	requires same_as<remove_reference_t<ListT>, linked_list> && predicate<CompareT, T, T>
-	void merge(ListT&& other, CompareT&& comp = {}) {//if a < b in some order, then comp(a, b) should returns true, otherwise returns false.
+	void merge(ListT&& other, const CompareT& comp = {}) {
+		//if a < b in some order, then comp(a, b) should returns true, otherwise returns false.
 		//merge two 'sorted' linked_list to one, by increasing order
 		if(this == &other) return;
 		node_t** ppnew = &head,
@@ -345,10 +349,16 @@ public:
 		other.head = nullptr;
 	}
 
+	// template <typename CompareT = less<T>>
+	// requires predicate<CompareT, T, T>
+	// void quick_sort(const CompareT& comp = {}) {
+		
+	// }
+
 	//using merge sort to sort linked_list, inplace, and stable.
 	template <typename CompareT = less<T>, bool overflow_check = false> 
 	requires predicate<CompareT, T, T>
-	void sort(CompareT&& comp = {}) {
+	void sort(const CompareT& comp = {}) {
 		if(length <= 1) return;
 
 		node_t** pos = &head;
@@ -410,7 +420,7 @@ public:
 
 	template <typename CompareT = less_equal<T>> //where CompareT should be less_equal<T> to match sort(less<T>{})
 	requires predicate<CompareT, T, T>
-	bool is_sorted(CompareT&& comp = {}) {
+	bool is_sorted(const CompareT& comp = {}) {
 		node_t* pos = head;
 		while(pos->next != nullptr) {
 			if( !comp(pos->data, pos->next->data) ) return false; 
@@ -472,7 +482,7 @@ private:
 
 	template <typename CompareT = less<T>>
 	requires predicate<CompareT, T, T>
-	static node_t** merge_nodes(node_t** from, node_t** mid, node_t** to, CompareT&& comp = {}) {
+	static node_t** merge_nodes(node_t** from, node_t** mid, node_t** to, const CompareT& comp = {}) {
 		//returns the new seq's tail ptr ptr.
 		//[from, mid) is a ordered seq, [mid, to) is also a ordered seq;
 		//merge these two seqs. 
