@@ -384,9 +384,9 @@ public:
 			}
 
 			merge_size = group_size;
-			//overflow check
+			//overflow check, it's hard to reach this situation, so check is defaultly disabled.
 			if constexpr(overflow_check) {
-				if(group_size >= (numeric_limits<size_t>::max() / 2)) {
+				if(group_size > (numeric_limits<size_t>::max() / 2)) {
 					group_size = numeric_limits<size_t>::max();
 					break;
 				}
