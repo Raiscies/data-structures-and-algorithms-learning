@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <utility>
+#include <limits>
 #include <initializer_list>
 #include <functional>
 #include <concepts>
@@ -8,6 +9,7 @@
 #include <iostream> //for testing
 
 using std::size_t;
+using std::numeric_limits;
 using std::initializer_list;
 using std::less;
 using std::less_equal;
@@ -340,7 +342,7 @@ public:
 	}
 
 	//using merge sort to sort linked_list, inplace, and stable.
-	template <typename CompareT = less<T>>
+	template <typename CompareT = less<T>, bool overflow_check = false>
 	void sort(CompareT&& comp = {}) 
 	requires requires(const T& a, const T& b){{comp(a, b)}->same_as<bool>;}  {
 		if(length <= 1) return;
@@ -363,7 +365,7 @@ public:
 		//sort and merge
 		//O( log2(N) )
 		size_t merge_size = 2, group_size = 4;
-		for(; group_size <= length; merge_size = group_size, group_size *= 2) {
+		while(group_size <= length) { 
 			//O( N )
 			pos = &head; //reset pos
 			//complete groups merging
@@ -380,12 +382,23 @@ public:
 				node_t** mid = next_n<false>(pos, merge_size);
 				merge_nodes(pos, mid, next_n<true>(mid, merge_size)/*this might out of range*/, comp);
 			}
+
+			merge_size = group_size;
+			//overflow check
+			if constexpr(overflow_check) {
+				if(group_size >= (numeric_limits<size_t>::max() / 2)) {
+					group_size = numeric_limits<size_t>::max();
+					break;
+				}
+			}
+			group_size *= 2;
+
 		}
 		if(length > merge_size) {
 			//last merge
 			//where list contains a complete group and a incomplete group
 			node_t** mid = next_n<false>(&head, merge_size);
-			merge_nodes(&head, mid, next_n<true>(mid, merge_size), comp);
+			merge_nodes(&head, mid, next_n<true>(mid, merge_size)/*this also might out of range*/, comp);
 		}
 	}
 
@@ -441,7 +454,7 @@ private:
 		} // null_check
 
 		//it works well when a == b or a == b->next or etc.
-		//swap two node
+		//swap two nodes
 		node_t* temp = a;
 		a = b;
 		b = temp;
