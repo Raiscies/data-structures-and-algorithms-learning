@@ -16,7 +16,8 @@ using std::less_equal;
 using std::forward;
 using std::move;
 using std::same_as;
-using std::is_convertible_v;
+using std::predicate;
+using std::convertible_to;
 using std::remove_reference_t;
 
 namespace rais::study {
@@ -165,7 +166,8 @@ public:
 
 
 	template <typename U> 
-	linked_list& push(U&& val) requires is_convertible_v<U, T> {
+	requires convertible_to<U, T>
+	linked_list& push(U&& val) {
 		auto pos = tail();
 		if(!pos) head = new node_t{forward<U>(val), nullptr};
 		else {
@@ -177,7 +179,8 @@ public:
 	}
 
 	template <typename U>
-	linked_list& unshift(U&& val) requires is_convertible_v<U, T> {
+	requires convertible_to<U, T>
+	linked_list& unshift(U&& val) {
 		if(!head) {
 			head = new node_t{forward<U>(val), nullptr};
 		}else {
@@ -189,7 +192,8 @@ public:
 	}
 
 	template <typename U>
-	linked_list& insert(size_t index, U&& val) requires is_convertible_v<U, T> {
+	requires convertible_to<U, T>
+	linked_list& insert(size_t index, U&& val)  {
 		//the param index will be param val's new index of list, 
 		//the previous element of the index will be shift to the next of the new element.
 		if(index > length) index = length;
@@ -312,8 +316,8 @@ public:
 	}
 
 	template <typename ListT, typename CompareT = less<T>>
-	void merge(ListT&& other, CompareT&& comp = {}) //if a < b in some order, then comp(a, b) should returns true, otherwise returns false.
-	requires same_as<remove_reference_t<ListT>, linked_list> && requires(const T& a, const T& b){{comp(a, b)}->same_as<bool>;} {
+	requires same_as<remove_reference_t<ListT>, linked_list> && predicate<CompareT, T, T>
+	void merge(ListT&& other, CompareT&& comp = {}) {//if a < b in some order, then comp(a, b) should returns true, otherwise returns false.
 		//merge two 'sorted' linked_list to one, by increasing order
 		if(this == &other) return;
 		node_t** ppnew = &head,
@@ -342,9 +346,9 @@ public:
 	}
 
 	//using merge sort to sort linked_list, inplace, and stable.
-	template <typename CompareT = less<T>, bool overflow_check = false>
-	void sort(CompareT&& comp = {}) 
-	requires requires(const T& a, const T& b){{comp(a, b)}->same_as<bool>;}  {
+	template <typename CompareT = less<T>, bool overflow_check = false> 
+	requires predicate<CompareT, T, T>
+	void sort(CompareT&& comp = {}) {
 		if(length <= 1) return;
 
 		node_t** pos = &head;
@@ -402,9 +406,11 @@ public:
 		}
 	}
 
+	// template <typename CompareT>
+
 	template <typename CompareT = less_equal<T>> //where CompareT should be less_equal<T> to match sort(less<T>{})
-	bool is_sorted(CompareT&& comp = {}) 
-	requires requires(const T& a, const T& b){{comp(a, b)}->same_as<bool>;}  {
+	requires predicate<CompareT, T, T>
+	bool is_sorted(CompareT&& comp = {}) {
 		node_t* pos = head;
 		while(pos->next != nullptr) {
 			if( !comp(pos->data, pos->next->data) ) return false; 
@@ -465,8 +471,8 @@ private:
 	}
 
 	template <typename CompareT = less<T>>
-	static node_t** merge_nodes(node_t** from, node_t** mid, node_t** to, CompareT&& comp = {}) 
-	requires requires(const T& a, const T& b){{comp(a, b)}->same_as<bool>;} {
+	requires predicate<CompareT, T, T>
+	static node_t** merge_nodes(node_t** from, node_t** mid, node_t** to, CompareT&& comp = {}) {
 		//returns the new seq's tail ptr ptr.
 		//[from, mid) is a ordered seq, [mid, to) is also a ordered seq;
 		//merge these two seqs. 
