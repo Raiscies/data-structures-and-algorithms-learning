@@ -411,12 +411,12 @@ public:
 	}
 
 
-	// template <typename CompareT = less<T>>
-	// requires predicate<CompareT, T, T>
-	// void quick_sort(const CompareT& comp = {}) {
-	// 	if(length <= 1) return;
-	// 	quick_sort_impl(&head, &(tail()->next), comp);
-	// }
+	template <typename CompareT = less<T>>
+	requires predicate<CompareT, T, T>
+	void quick_sort(const CompareT& comp = {}) {
+		if(length <= 1) return;
+		quick_sort_recursive(head, tail()->next, comp);
+	}
 
 
 	template <typename CompareT = less_equal<T>> //where CompareT should be less_equal<T> to match sort(less<T>{})
@@ -501,33 +501,35 @@ public:
 
 protected:
 
-	//not finished.
-	// template <typename CompareT = less<T>>
-	// requires predicate<CompareT, T, T>
-	// void quick_sort_impl(node_t** from, node_t** to, const CompareT& comp) {
-	// 	if(from == to) return; 
-	// 	if((*from)->next == *to && comp((*from)->next->data, (*to)->data)) return swap_nodes<false>(*from, *to);
-		
-	// 	//main procedure
-	// 	node_t*  pivot_node = *from, 
-	// 	      ** pos = &((*from)->next),
-	// 	      ** less_pos = from,
-	// 	      *  end_pos = *to == nullptr ? nullptr : (*to)->next;
-	// 	while(*pos != end_pos) {
-	// 		// if((*pos)->data < pivot_node->data)
-	// 		if( comp((*pos)->data, pivot_node->data) ) {
-	// 			node_t* moved_node = *pos;
-	// 			*pos = (*pos)->next;
+	template <typename CompareT>
+	requires predicate<CompareT, T, T>
+	void quick_sort_recursive(node_t*& from, node_t* to, const CompareT& comp) {
+		//assume that from != nullptr and from->...->next == to
 
-	// 			*less_pos = moved_node;
-	// 			moved_node->next = pivot_node;
-	// 			less_pos = &((*less_pos)->next);
-	// 		}else {
-	// 			pos = &((*pos)->next);
-	// 		}
-	// 	}
+		//only one element
+		if(from == to or from->next == nullptr) return; 
+		//only two elements
+		if(from->next == to) {
+			if(comp(to->data, from->data)) swap_nodes<false>(from, from->next);
+			return;
+		}
 
-	// }
+		node_t*  pivot = from, 
+		      ** pos = &(from->next);
+
+		while(*pos != to) {
+			if(comp((*pos)->data, pivot->data)) {
+				node_t* temp = (*pos)->next;
+				(*pos)->next = from;
+				from = *pos;
+				*pos = temp;
+			}else {
+				pos = &((*pos)->next);
+			}
+		}
+		quick_sort_recursive(from, pivot, comp);
+		quick_sort_recursive(pivot->next, to, comp);	
+	}
 
 
 	node_t*& tail() {
@@ -686,5 +688,9 @@ void test_linked_list() {
 	std::cout << " after sort: " << list5 << '\n';
 	std::cout << "14. test is_sorted: " << std::boolalpha << list5.is_sorted() << '\n';
 	std::cout << "15. test merge(const list&, const list&, CompareT&&): " << merge(list4, list5) << '\n';
+	auto list6 = linked_list<int>{52, 99, 7, 3, 5, 7, 2, 2, 34, 53, 53, 12, 42, 94, 53, 81, 1, 4, 9};
+	std::cout << "16. test quick_sort: \nbefore quick_sort: " << list6 << '\n';
+	list6.quick_sort();
+	std::cout << "after quick_sort: " << list6 << '\n';
 }
 

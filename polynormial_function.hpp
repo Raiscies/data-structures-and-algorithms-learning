@@ -74,6 +74,7 @@ public:
 	linked_list<item_t>& data() noexcept{return static_cast<linked_list<item_t>&>(*this); }
 	const linked_list<item_t>& data() const noexcept{ return static_cast<const linked_list<item_t>&>(*this); }
 
+	//TODO...
 	friend polyfunc operator-(const polyfunc& f) {
 		auto temp = f;
 		
