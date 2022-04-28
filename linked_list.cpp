@@ -19,6 +19,7 @@ using std::same_as;
 using std::predicate;
 using std::convertible_to;
 using std::remove_reference_t;
+using std::remove_cvref_t;
 
 namespace rais::study {
 
@@ -80,18 +81,10 @@ public:
 	using iterator_t = iterator;
 	using const_iterator_t = const_iterator;
 
-private:
+protected:
 
 	node_t* head = nullptr;
 	size_t length = 0;
-
-
-	node_t* tail() {
-		if(head == nullptr) return nullptr;
-		node_t* pos = head;
-		while(pos->next != nullptr) pos = pos->next;
-		return pos;
-	}
 
 public:
 	linked_list() {}
@@ -206,9 +199,9 @@ public:
 		return *this;
 	}
 
-	template <typename U>
-	requires convertible_to<U, T>
-	linked_list& insert_after(const iterator_t& it, U&& val) {
+	template <typename U, typename IteratorT>
+	requires convertible_to<U, T> && same_as<remove_reference_t<IteratorT>, iterator_t>
+	linked_list& insert_after(IteratorT&& it, U&& val) {
 		//insert val after the data that it points
 		//no before_begin() / before_cbegin() method, 
 		//it means it's impossible to insert a element to the head
@@ -259,7 +252,9 @@ public:
 	}
 
 
-	void erase_after(const iterator_t& it) {
+	template <typename IteratorT>
+	requires same_as<remove_reference_t<IteratorT>, iterator_t>
+	void erase_after(IteratorT&& it) {
 		//no before_begin() / before_cbegin() method, 
 		//it means it's impossible to erase a element of the head
 		//no iterator validity check, therefore it's useless to return whether the operation is satisfied.
@@ -318,9 +313,9 @@ public:
 
 	}
 
-	template <typename ListT, typename CompareT = less<T>>
-	requires same_as<remove_reference_t<ListT>, linked_list> && predicate<CompareT, T, T>
-	void merge(ListT&& other, const CompareT& comp = {}) {
+	template <typename CompareT = less<T>>
+	requires predicate<CompareT, T, T>
+	void merge(linked_list&& other, const CompareT& comp = {}) {
 		//if a < b in some order, then comp(a, b) should returns true, otherwise returns false.
 		//merge two 'sorted' linked_list to one, by increasing order
 		if(this == &other) return;
@@ -349,16 +344,13 @@ public:
 		other.head = nullptr;
 	}
 
-	// template <typename CompareT = less<T>>
-	// requires predicate<CompareT, T, T>
-	// void quick_sort(const CompareT& comp = {}) {
-		
-	// }
+
 
 	//using merge sort to sort linked_list, inplace, and stable.
 	template <typename CompareT = less<T>, bool overflow_check = false> 
 	requires predicate<CompareT, T, T>
 	void sort(const CompareT& comp = {}) {
+		//if a < b in some order, then comp(a, b) should returns true, otherwise returns false.
 		if(length <= 1) return;
 
 		node_t** pos = &head;
@@ -416,7 +408,14 @@ public:
 		}
 	}
 
-	// template <typename CompareT>
+
+	// template <typename CompareT = less<T>>
+	// requires predicate<CompareT, T, T>
+	// void quick_sort(const CompareT& comp = {}) {
+	// 	if(length <= 1) return;
+	// 	quick_sort_impl(&head, &(tail()->next), comp);
+	// }
+
 
 	template <typename CompareT = less_equal<T>> //where CompareT should be less_equal<T> to match sort(less<T>{})
 	requires predicate<CompareT, T, T>
@@ -438,7 +437,101 @@ public:
 		b.length = temp_len;
 	}
 
-private:
+	//to prevent non-member merge() be hidden
+	template <typename CompareT = less<T>>
+	requires predicate<CompareT, T, T>
+	friend linked_list merge(const linked_list& a, const linked_list& b, CompareT&& comp = {}) {
+		return linked_list::merge(a, b, comp);
+	}
+	template <typename CompareT = less<T>>
+	requires predicate<CompareT, T, T>
+	static linked_list merge(const linked_list& a, const linked_list& b, CompareT&& comp = {}) {
+		//assume that a and b are sorted.
+
+		//merge two list, and return new list
+		linked_list temp;
+		node_t*  pa = a.head, 
+		      *  pb = b.head, 
+		      ** pt = &temp.head;
+
+		while(pa != nullptr and pb != nullptr) {
+			// (*pb)->data < (*pa)->data
+			if( comp(pb->data, pa->data) ) {
+				*pt = new node_t{pb->data};
+				pb = pb->next;
+			}else {
+				*pt = new node_t{pa->data};
+				pa = pa->next;
+			}
+			pt = &((*pt)->next);
+		}
+		if(pa != nullptr) {
+			do{
+				*pt = new node_t{pa->data};
+				pa = pa->next;
+				pt = &((*pt)->next);
+			}while(pa != nullptr);
+		}else {
+			do{
+				*pt = new node_t{pb->data};
+				pb = pb->next;
+				pt = &((*pt)->next);	
+			}while(pb != nullptr);
+		}
+		*pt = nullptr;
+		temp.length = a.length + b.length;
+		return temp;
+
+	}
+
+
+protected:
+
+	//not finished.
+	// template <typename CompareT = less<T>>
+	// requires predicate<CompareT, T, T>
+	// void quick_sort_impl(node_t** from, node_t** to, const CompareT& comp) {
+	// 	if(from == to) return; 
+	// 	if((*from)->next == *to && comp((*from)->next->data, (*to)->data)) return swap_nodes<false>(*from, *to);
+		
+	// 	//main procedure
+	// 	node_t*  pivot_node = *from, 
+	// 	      ** pos = &((*from)->next),
+	// 	      ** less_pos = from,
+	// 	      *  end_pos = *to == nullptr ? nullptr : (*to)->next;
+	// 	while(*pos != end_pos) {
+	// 		// if((*pos)->data < pivot_node->data)
+	// 		if( comp((*pos)->data, pivot_node->data) ) {
+	// 			node_t* moved_node = *pos;
+	// 			*pos = (*pos)->next;
+
+	// 			*less_pos = moved_node;
+	// 			moved_node->next = pivot_node;
+	// 			less_pos = &((*less_pos)->next);
+	// 		}else {
+	// 			pos = &((*pos)->next);
+	// 		}
+	// 	}
+
+	// }
+
+
+	node_t*& tail() {
+		if(head == nullptr) return head;
+		node_t** pos = &head;
+		while((*pos)->next != nullptr) pos = &((*pos)->next);
+		return *pos;
+	}
+
+	//erase_after is really rubbish
+	void erase(node_t** pos) {
+		if(pos == nullptr or *pos == nullptr) return;
+		node_t* next_of_pos = (*pos)->next;
+		delete *pos;
+		*pos = next_of_pos; 
+		length--;
+	}
+
 	template <bool null_check = true>
 	static node_t** next_n(node_t** pos, size_t n) noexcept(null_check) {
 		//advance pos n times
@@ -519,6 +612,7 @@ private:
 }; //class linked_list<T>
 
 
+
 template <typename DataT>
 std::ostream& operator<<(std::ostream& os, const linked_list<DataT>& list) {
 	os << '[';
@@ -531,14 +625,114 @@ std::ostream& operator<<(std::ostream& os, const linked_list<DataT>& list) {
 	return os << ']';
 }
 
+struct polynormial_item {
+	// a * x^n
+	double a = 1.0;
+	size_t n;
+
+};
+
+class polynormial_function;
+using polyfunc = polynormial_function;
+using polyitem = polynormial_item;
+
+class polynormial_function: protected linked_list<polynormial_item> {
+
+public:
+	// using linked_list<item_t> = linked_list<polynormial_item>;
+	using item_t = polynormial_item;
+	using linked_list<item_t>::iterator_t;
+	using linked_list<item_t>::const_iterator_t;
+
+	using linked_list<item_t>::begin;
+	using linked_list<item_t>::end;
+	using linked_list<item_t>::length;
+private:
+
+	using linked_list<item_t>::head;
+	using linked_list<item_t>::sort;
+	using linked_list<item_t>::shift;
+	using linked_list<item_t>::erase_after;
+	using linked_list<item_t>::erase;
+	using linked_list<item_t>::node_t;
+	using linked_list<item_t>::merge;
+public:
+
+	polynormial_function(const polyfunc& other): linked_list<item_t>(other.data()) {}
+	polynormial_function(polyfunc&& other): linked_list<item_t>(move(other.data())) {}
+
+	template <typename U> 
+	requires same_as<remove_cvref_t<U>, linked_list<item_t>>
+	polynormial_function(U&& other): linked_list<item_t>(forward<U>(other)) {
+		regularize();
+	}
+	polynormial_function(initializer_list<item_t> list): linked_list<item_t>(list) {
+		regularize();	
+	}
+
+	void regularize() {
+		if(length == 0) return; 
+		sort([](const item_t& item1, const item_t& item2) noexcept{ return item1.n < item2.n; });
+		//merge same items
+		node_t** pos = &head;
+
+		while(*pos != nullptr and (*pos)->next != nullptr) {
+			if((*pos)->data.a == 0) erase(pos);
+			else if((*pos)->data.n == (*pos)->next->data.n) {
+				//merge the same n's item
+				(*pos)->data.a += (*pos)->next->data.a;
+				erase_after(iterator_t{*pos});
+			}else {
+				pos = &((*pos)->next);
+			}
+		}
+		if(*pos != nullptr and (*pos)->data.a == 0) erase(pos);
+	
+	}	
+
+	linked_list<item_t>& data() noexcept{return static_cast<linked_list<item_t>&>(*this); }
+	const linked_list<item_t>& data() const noexcept{ return static_cast<const linked_list<item_t>&>(*this); }
+ 
+	friend polyfunc operator+(const polyfunc& f1, const polyfunc& f2) {
+		return polyfunc(merge(f1.data(), f2.data(), [](const polyitem& a, const polyitem& b) noexcept{return a.n < b.n;} ));
+	}
+
+};
+
+
+
+std::ostream& operator<<(std::ostream& os, const polynormial_item& item) {
+	os << (item.a < 0 ? " - " : " + ") << item.a;
+	if(item.n == 0) return os;
+	else if(item.n == 1) return os << "x";
+	else return os << "x^(" << item.n << ')';
+}
+std::ostream& operator<<(std::ostream& os, const polynormial_function& func) {
+	for(const auto& item: func) {
+		os << item;
+	}
+	return os;
+}
+
 
 } //namespace rais::study
 
 using namespace rais::study;
 
-int main() {
-	std::ios::sync_with_stdio();
-	linked_list<std::string> list;
+void test_polynormial_function() {
+	polyfunc func1 = {{0, 34}, {2, 3}, {18, 3}, {8, 1}, {9, 4}, {0, 2}, {4, 1}, {1, 2}},
+	     func2 = {{0, 3}, {13, 2}, {18, 2}, {8, 0}, {9, 4}, {0, 2}, {4, 1}, {1, 2}};
+	std::cout << "func1: " << func1 << '\n';
+	std::cout << "func2: " << func2 << '\n';
+	std::cout << "func1 + func2: " << (func1 + func2) << '\n';
+
+
+}
+
+
+
+void test_linked_list() {
+linked_list<std::string> list;
 	// test push
 	list.push("1. Test push");
 	// test unshift
@@ -581,15 +775,22 @@ int main() {
 	list3.push(1).push(4).push(7).push(10).push(14).push(22).push(25).push(31);
 	list4.push(1).push(2).push(10).push(10).push(11).push(15).push(20).push(26);
 	std::cout << "11. test merge:\nlist3: " << list3 << "\nlist4: " << list4 << '\n';
-	list4.merge(list3, [](int a, int b){return a < b;});
+	list4.merge(move(list3), [](int a, int b){return a < b;});
 	std::cout << "merged. \nlist3: " << list3 << "\nlist4: " << list4 << '\n';
 	std::cout << "12. test initializer_list constructor: " << linked_list<char>{'2','3', '4', 'c', 'x', 'n'} << "\n\n";
-	auto list5 = linked_list<int>{99, 7, 3, 5, 7, 2, 2, 34, 53, 53, 12, 42, 94, 53, 81, 1, 4, 9};
+	auto list5 = linked_list<int>{52, 99, 7, 3, 5, 7, 2, 2, 34, 53, 53, 12, 42, 94, 53, 81, 1, 4, 9};
 	std::cout << "13. test sort: \nbefore sort: " << list5 << '\n';
 	list5.sort();
 	std::cout << " after sort: " << list5 << '\n';
 	std::cout << "14. test is_sorted: " << std::boolalpha << list5.is_sorted() << '\n';
+	std::cout << "15. test merge(const list&, const list&, CompareT&&): " << merge(list4, list5) << '\n';
+}
 
 
+int main() {
+	std::ios::sync_with_stdio();
+
+	// test_linked_list();
+	test_polynormial_function();
 
 }
