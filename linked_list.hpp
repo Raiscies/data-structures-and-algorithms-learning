@@ -7,8 +7,6 @@
 #include <functional>
 #include <concepts>
 #include <type_traits>
-#include <string>   //for testing
-#include <iostream> //for testing
 
 using std::size_t;
 using std::numeric_limits;
@@ -346,12 +344,16 @@ public:
 		other.head = nullptr;
 	}
 
-
-
-	//using merge sort to sort linked_list, inplace, and stable.
-	template <typename CompareT = less<T>, bool overflow_check = false> 
+	template <typename CompareT = less<T>>
 	requires predicate<CompareT, T, T>
 	void sort(const CompareT& comp = {}) {
+		quick_sort(comp);
+	}
+
+	//using merge sort to sort linked_list, inplace and stable, but slower than quick_sort()
+	template <typename CompareT = less<T>, bool overflow_check = false> 
+	requires predicate<CompareT, T, T>
+	void merge_sort(const CompareT& comp = {}) {
 		//if a < b in some order, then comp(a, b) should returns true, otherwise returns false.
 		if(length <= 1) return;
 
@@ -439,7 +441,7 @@ public:
 		b.length = temp_len;
 	}
 
-	//to prevent non-member merge() be hidden
+	//to avoid non-member friend merge() be hidden
 	template <typename CompareT = less<T>>
 	requires predicate<CompareT, T, T>
 	friend linked_list merge(const linked_list& a, const linked_list& b, CompareT&& comp = {}) {
@@ -486,8 +488,13 @@ public:
 
 	}
 
-
-	friend std::ostream& operator<<(std::ostream& os, const linked_list& list) {
+	template <typename OutputStreamT> //such as std::ostream
+	requires requires(OutputStreamT& os, const T& val, char c, const char* s) {
+		{os << val}->same_as<OutputStreamT&>;
+		{os << c}->same_as<OutputStreamT&>;
+		{os << s}->same_as<OutputStreamT&>;
+	}
+	friend OutputStreamT& operator<<(OutputStreamT& os, const linked_list& list)  {
 		os << '[';
 		if(list.size() != 0) {
 			os << *list.cbegin();
@@ -500,10 +507,26 @@ public:
 
 
 protected:
+	
+	node_t*& tail() {
+		if(head == nullptr) return head;
+		node_t** pos = &head;
+		while((*pos)->next != nullptr) pos = &((*pos)->next);
+		return *pos;
+	}
+
+	//erase_after is really rubbish
+	void erase(node_t** pos) {
+		if(pos == nullptr or *pos == nullptr) return;
+		node_t* next_of_pos = (*pos)->next;
+		delete *pos;
+		*pos = next_of_pos; 
+		length--;
+	}
 
 	template <typename CompareT>
 	requires predicate<CompareT, T, T>
-	void quick_sort_recursive(node_t*& from, node_t* to, const CompareT& comp) {
+	static void quick_sort_recursive(node_t*& from, node_t* to, const CompareT& comp) {
 		//assume that from != nullptr and from->...->next == to
 
 		//only one element
@@ -529,23 +552,6 @@ protected:
 		}
 		quick_sort_recursive(from, pivot, comp);
 		quick_sort_recursive(pivot->next, to, comp);	
-	}
-
-
-	node_t*& tail() {
-		if(head == nullptr) return head;
-		node_t** pos = &head;
-		while((*pos)->next != nullptr) pos = &((*pos)->next);
-		return *pos;
-	}
-
-	//erase_after is really rubbish
-	void erase(node_t** pos) {
-		if(pos == nullptr or *pos == nullptr) return;
-		node_t* next_of_pos = (*pos)->next;
-		delete *pos;
-		*pos = next_of_pos; 
-		length--;
 	}
 
 	template <bool null_check = true>
@@ -631,66 +637,4 @@ protected:
 
 
 } //namespace rais::study
-
-
-void test_linked_list() {
-	using namespace rais::study;
-
-	linked_list<std::string> list;
-	// test push
-	list.push("1. Test push");
-	// test unshift
-	list.unshift("2. Test unshift");
-	// test insert
-	list.insert(0, "3. Test insert");
-	// test operator[]
-	std::cout << "4. Test operator[]{" << list[2] << "}\n";
-	// test get_ptr
-	std::cout << "5. Test get_ptr{" << *list.get_ptr(0) << "}\n";
-	std::cout << list << '\n';
-	// test erase
-	std::cout << "6. Test erase\n";
-	list.erase(1);
-	std::cout << list << '\n';
-	// test clear
-	std::cout << "7. Test clear\n";
-	list.clear();
-	std::cout << list << '\n';
-	// test reverse
-	std::cout << "8. Test reverse from:";
-	list.push("1").push("2").push("3").push("4").push("5").push("6").unshift("0").unshift("-1");
-	std::cout << list << "\n";
-	list.reverse();
-	std::cout << "to: " << list << '\n';
-	// test shift
-	std::cout << "9. Test shift: " << list.shift() << '\n';
-	//test pop
-	std::cout << "10. Test pop: "  << list.pop() << '\n';
-	std::cout << "current list: " << list << '\n';
-	// test copy constructor
-	auto list2 = list;
-	std::cout << "list2: " << list2 << '\n';
-	// test swap 
-	list2.push("this is from list2");
-	swap(list, list2);
-	std::cout << "list: " << list << '\n' << "list2: " << list2 << '\n';
-	// test merge
-	linked_list<int> list3, list4;
-	list3.push(1).push(4).push(7).push(10).push(14).push(22).push(25).push(31);
-	list4.push(1).push(2).push(10).push(10).push(11).push(15).push(20).push(26);
-	std::cout << "11. test merge:\nlist3: " << list3 << "\nlist4: " << list4 << '\n';
-	list4.merge(move(list3), [](int a, int b){return a < b;});
-	std::cout << "merged. \nlist3: " << list3 << "\nlist4: " << list4 << '\n';
-	std::cout << "12. test initializer_list constructor: " << linked_list<char>{'2','3', '4', 'c', 'x', 'n'} << "\n\n";
-	auto list5 = linked_list<int>{52, 99, 7, 3, 5, 7, 2, 2, 34, 53, 53, 12, 42, 94, 53, 81, 1, 4, 9};
-	std::cout << "13. test sort: \nbefore sort: " << list5 << '\n';
-	list5.sort();
-	std::cout << " after sort: " << list5 << '\n';
-	std::cout << "14. test is_sorted: " << std::boolalpha << list5.is_sorted() << '\n';
-	std::cout << "15. test merge(const list&, const list&, CompareT&&): " << merge(list4, list5) << '\n';
-	auto list6 = linked_list<int>{52, 99, 7, 3, 5, 7, 2, 2, 34, 53, 53, 12, 42, 94, 53, 81, 1, 4, 9};
-	std::cout << "16. test quick_sort: \nbefore quick_sort: " << list6 << '\n';
-	list6.quick_sort();
-	std::cout << "after quick_sort: " << list6 << '\n';
-}
 
