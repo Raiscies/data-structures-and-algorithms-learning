@@ -176,12 +176,7 @@ public:
 	template <typename U>
 	requires convertible_to<U, T>
 	linked_list& unshift(U&& val) {
-		if(!head) {
-			head = new node_t{forward<U>(val), nullptr};
-		}else {
-			node_t* temp = head;
-			head = new node_t{forward<U>(val), temp};
-		}
+		head = new node_t{forward<U>(val), head};
 		length++;
 		return *this;
 	}
@@ -220,7 +215,7 @@ public:
 
 	const T& operator[](size_t index) const{
 		//no boundary check
-		node_t* pos = head;
+		const node_t* pos = head;
 		for(size_t i = 0; i < index; i++) pos = pos->next;
 		return pos->data;
 	}
@@ -508,12 +503,20 @@ public:
 
 protected:
 	
-	node_t*& tail() {
+	node_t*& tail() noexcept{
 		if(head == nullptr) return head;
 		node_t** pos = &head;
 		while((*pos)->next != nullptr) pos = &((*pos)->next);
 		return *pos;
 	}
+	
+	const node_t* const & tail() const noexcept{
+		if(head == nullptr) return head;
+		const node_t* const * pos = &head;
+		while((*pos)->next != nullptr) pos = &((*pos)->next);
+		return *pos;
+	}
+
 
 	//erase_after is really rubbish
 	void erase(node_t** pos) {
