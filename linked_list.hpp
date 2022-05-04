@@ -30,10 +30,10 @@ struct list_node {
 	list_node* next;
 
 	template <typename U> 
-	requires convertible_to<U, T>
+	requires convertible_to<U, const T&>
 	list_node(U&& val, list_node* next): data(forward<U>(val)), next(next) {}
 	template <typename U>
-	requires convertible_to<U, T>
+	requires convertible_to<U, const T&>
 	list_node(U&& val): data(forward<U>(val)) {}
 };
 
@@ -161,7 +161,7 @@ public:
 
 
 	template <typename U> 
-	requires convertible_to<U, T>
+	requires convertible_to<U, const T&>
 	linked_list& push(U&& val) {
 		auto pos = tail();
 		if(!pos) head = new node_t{forward<U>(val), nullptr};
@@ -174,7 +174,7 @@ public:
 	}
 
 	template <typename U>
-	requires convertible_to<U, T>
+	requires convertible_to<U, const T&>
 	linked_list& unshift(U&& val) {
 		head = new node_t{forward<U>(val), head};
 		length++;
@@ -182,7 +182,7 @@ public:
 	}
 
 	template <typename U>
-	requires convertible_to<U, T>
+	requires convertible_to<U, const T&>
 	linked_list& insert(size_t index, U&& val)  {
 		//the param index will be param val's new index of list, 
 		//the previous element of the index will be shift to the next of the new element.
@@ -194,9 +194,9 @@ public:
 		return *this;
 	}
 
-	template <typename U, typename IteratorT>
-	requires convertible_to<U, T> && same_as<remove_reference_t<IteratorT>, iterator_t>
-	linked_list& insert_after(IteratorT&& it, U&& val) {
+	template <typename U>
+	requires convertible_to<U, const T&>
+	linked_list& insert_after(iterator_t it, U&& val) {
 		//insert val after the data that it points
 		//no before_begin() / before_cbegin() method, 
 		//it means it's impossible to insert a element to the head
@@ -247,9 +247,7 @@ public:
 	}
 
 
-	template <typename IteratorT>
-	requires same_as<remove_reference_t<IteratorT>, iterator_t>
-	void erase_after(IteratorT&& it) {
+	void erase_after(iterator_t it) {
 		//no before_begin() / before_cbegin() method, 
 		//it means it's impossible to erase a element of the head
 		//no iterator validity check, therefore it's useless to return whether the operation is satisfied.
@@ -439,12 +437,12 @@ public:
 	//to avoid non-member friend merge() be hidden
 	template <typename CompareT = less<T>>
 	requires predicate<CompareT, T, T>
-	friend linked_list merge(const linked_list& a, const linked_list& b, CompareT&& comp = {}) {
+	friend linked_list merge(const linked_list& a, const linked_list& b, const CompareT& comp = {}) {
 		return linked_list::merge(a, b, comp);
 	}
 	template <typename CompareT = less<T>>
 	requires predicate<CompareT, T, T>
-	static linked_list merge(const linked_list& a, const linked_list& b, CompareT&& comp = {}) {
+	static linked_list merge(const linked_list& a, const linked_list& b, const CompareT& comp = {}) {
 		//assume that a and b are sorted.
 
 		//merge two list, and return new list
