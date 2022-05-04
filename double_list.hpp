@@ -144,13 +144,44 @@ public:
 	template <typename U>
 	requires convertible_to<U, const T&>
 	double_list& insert(size_t index, U&& val) {
-
+		if(head == nullptr) {
+			//len == 0
+			head = new node_t{forward<U>(val), nullptr, nullptr};
+			head->priv = head;
+		}else if(index > len) {
+			//insert to the tail
+			head->priv = head->priv->next = new node_t{forward<U>(val), head->priv, nullptr};
+		}else {
+			node_t* pos = head;
+			if(index <= len / 2) {
+				//indexing from head
+				for(size_t i = 0; i < index; i++) pos = pos->next;
+			}else {
+				//indexing from tail
+				for(size_t i = 0; i < (len - index); i++) pos = pos->priv;
+			}
+			pos->priv = pos->priv->next = new node_t{forward<U>(val), pos->priv, pos};
+		}
+	
+		len++;
+		return *this;
 	}
 
 	template <typename U>
 	requires convertible_to<U, const T&>
 	double_list& insert(iterator_t it, U&& val) {
-		it.get_ptr()->priv->next = new node_t{forward<U>(val), it.get_ptr()->priv, it.get_ptr()};
+		if(head == nullptr) {
+			//len == 0
+			head = new node_t{forward<U>(val), nullptr, nullptr};
+			head->priv = head;
+		}else if(it.get_ptr() == nullptr) {
+			//insert to the tail
+			head->priv = head->priv->next = new node_t{forward<U>(val), head->priv, nullptr};
+		}else {
+			it.get_ptr()->priv = it.get_ptr()->priv->next = new node_t{forward<U>(val), it.get_ptr()->priv, it.get_ptr()};
+		}
+		len++;
+		return *this;
 	}
 
 	T& operator[](size_t index) {
@@ -201,14 +232,14 @@ public:
 	}
 
 protected:
-	node_t* tail() noexcept{
-		if(head == nullptr) return nullptr;
-		return head->priv;
-	}
-	const node_t* tail() const noexcept{
-		if(head == nullptr) return nullptr;
-		return head->priv;	
-	} 
+	// node_t* tail() noexcept{
+	// 	if(head == nullptr) return nullptr;
+	// 	return head->priv;
+	// }
+	// const node_t* tail() const noexcept{
+	// 	if(head == nullptr) return nullptr;
+	// 	return head->priv;	
+	// } 
 	// node_t*& tail() noexcept{
 	// 	if(head == nullptr) return head;
 	// 	node_t** pos = &head;
