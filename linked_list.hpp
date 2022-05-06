@@ -18,8 +18,6 @@ using std::move;
 using std::same_as;
 using std::predicate;
 using std::convertible_to;
-using std::remove_reference_t;
-using std::remove_cvref_t;
 
 namespace rais::study {
 
