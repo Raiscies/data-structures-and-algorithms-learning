@@ -424,7 +424,7 @@ public:
 		}
 		return true;
 	}
-
+	
 	friend void swap(linked_list& a, linked_list& b) noexcept{
 		node_t* temp = a.head;
 		size_t temp_len = a.length;

@@ -4,7 +4,7 @@
 
 #include <cstddef>
 #include <utility>
-#include <concept>
+#include <concepts>
 #include <initializer_list>
 
 namespace rais::study {
@@ -14,6 +14,7 @@ using std::forward;
 using std::initializer_list;
 
 //concepts
+using std::same_as;
 using std::convertible_to;
 
 template <typename T>
@@ -106,7 +107,7 @@ public:
 		node_t* pos = head;
 		++it;
 		for(; it != list.end(); ++it) {
-			pos->next = new node_t{i, pos};
+			pos->next = new node_t{*it, pos};
 			pos = pos->next;
 		}
 		pos->next = nullptr;
@@ -119,7 +120,7 @@ public:
 		node_t* pos = head;
 		++it;
 		for(; it != other.end(); ++it) {
-			pos->next = new node_t{i, pos};
+			pos->next = new node_t{*it, pos};
 			pos = pos->next;
 		}
 		pos->next = nullptr;
@@ -178,7 +179,7 @@ public:
 			// head<--head-->nullptr
 		}else {
 			node_t* tail = head->priv;
-			head->priv = tail->next = new node_t{forward<U>(val), tail_node, nullptr};
+			head->priv = tail->next = new node_t{forward<U>(val), tail, nullptr};
 		}
 		len++;
 		return *this;
@@ -321,13 +322,13 @@ public:
 		b.len = temp_len;
 	}
 
-	template <typename OStreamT>
+	template <typename OutputStreamT>
 	requires requires(OutputStreamT& os, const T& val, char c, const char* s) {
 		{os << val}->same_as<OutputStreamT&>;
 		{os << c}->same_as<OutputStreamT&>;
 		{os << s}->same_as<OutputStreamT&>;
 	}
-	friend OStreamT& operator<<(OStreamT& os, const double_list& list) {
+	friend OutputStreamT& operator<<(OutputStreamT& os, const double_list& list) {
 		os << '[';
 		if(list.size() != 0) {
 			os << *list.cbegin();
