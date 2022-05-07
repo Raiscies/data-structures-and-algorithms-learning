@@ -10,6 +10,7 @@
 namespace rais::study {
 
 using std::size_t;
+using std::move;
 using std::forward;
 using std::initializer_list;
 
@@ -294,6 +295,27 @@ public:
 		}
 		len--;
 		return true;
+	}
+
+	void erase(iterator_t it) {
+		if(it.get_ptr() == head) {
+			//erase head node
+			node_t* old_head = head;
+			head = head->next;
+			if(len != 1) head->priv = old_head->priv;
+			delete old_head;
+		}else if(it.get_ptr()->next == nullptr) {
+			//erase tail node
+			it.get_ptr()->priv->next = nullptr;
+			head->priv = it.get_ptr()->priv;
+			delete it.get_ptr();
+		}else {
+			node_t* temp = it.get_ptr();
+			temp->priv->next = temp->next;
+			temp->next->priv = temp->priv;
+			delete temp;
+		}
+		len--;
 	}
 
 	void clear() {

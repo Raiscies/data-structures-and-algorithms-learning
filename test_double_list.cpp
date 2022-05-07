@@ -1,7 +1,6 @@
 #include <double_list.hpp>
 #include <iostream>
 
-
 void test_double_list() {
 	using namespace rais::study;
 	using std::cout;
@@ -15,11 +14,14 @@ void test_double_list() {
 	cout << lf;
 	list.clear();
 	cout << list << lf;
-	double_list<const char*> slist = {"slist", "test"};
+	double_list<const char*> slist = {"slist", "test", "a", "bb", "ccc", "rais", "@@"};
 	cout << slist << lf;
 	slist.insert(2, "insert str");
 	slist.insert(0, "insert head");
-	cout << slist;
+	cout << slist << lf;
+	cout << slist.shift() << lf << slist.pop() << lf << slist << lf; 
+	slist.erase(3);
+	cout << slist << lf;
 	cout << "finished test\n";
 }
 
