@@ -102,7 +102,7 @@ public:
 
 	double_list() {}
 	double_list(initializer_list<T> list) {
-		const auto it = list.begin();
+		auto it = list.begin();
 		head = new node_t{*it};
 		node_t* pos = head;
 		++it;
@@ -115,7 +115,7 @@ public:
 		len = list.size();
 	}
 	double_list(const double_list& other) {
-		const auto it = other.begin();
+		auto it = other.begin();
 		head = new node_t{*it};
 		node_t* pos = head;
 		++it;
@@ -174,8 +174,9 @@ public:
 	requires convertible_to<U, const T&>
 	double_list& push(U&& val) {
 		if(!head) {
-			head = new node_t{forward<U>(val), nullptr, nullptr};
+			head = new node_t{forward<U>(val)};
 			head->priv = head;
+			head->next = nullptr;
 			// head<--head-->nullptr
 		}else {
 			node_t* tail = head->priv;
@@ -188,7 +189,14 @@ public:
 	template <typename U>
 	requires convertible_to<U, const T&>
 	double_list& unshift(U&& val) {
-		head = new node_t{forward<U>(val), head->priv, head};
+		if(!head) {
+			head = new node_t{forward<U>(val)};
+			head->priv = head;
+			head->next = nullptr;
+		}else {
+			head = new node_t{forward<U>(val), head->priv, head};
+			head->next->priv = head;
+		}
 		len++;
 		return *this;
 	}
@@ -196,18 +204,11 @@ public:
 	template <typename U>
 	requires convertible_to<U, const T&>
 	double_list& insert(size_t index, U&& val) {
-		if(head == nullptr) {
-			//len == 0
-			head = new node_t{forward<U>(val), nullptr, nullptr};
-			head->priv = head;
-		}else if(index > len) {
-			//insert to the tail
-			head->priv = head->priv->next = new node_t{forward<U>(val), head->priv, nullptr};
-		}else {
-			node_t* pos = get_node(index);
-			pos->priv = pos->priv->next = new node_t{forward<U>(val), pos->priv, pos};
-		}
-	
+		if(index == 0)  return unshift(forward<U>(val));
+		if(index >= len) return push(forward<U>(val));
+		
+		node_t* pos = get_node(index);
+		pos->priv = pos->priv->next = new node_t{forward<U>(val), pos->priv, pos};
 		len++;
 		return *this;
 	}
@@ -215,16 +216,10 @@ public:
 	template <typename U>
 	requires convertible_to<U, const T&>
 	double_list& insert(iterator_t it, U&& val) {
-		if(head == nullptr) {
-			//len == 0
-			head = new node_t{forward<U>(val), nullptr, nullptr};
-			head->priv = head;
-		}else if(it.get_ptr() == nullptr) {
-			//insert to the tail
-			head->priv = head->priv->next = new node_t{forward<U>(val), head->priv, nullptr};
-		}else {
-			it.get_ptr()->priv = it.get_ptr()->priv->next = new node_t{forward<U>(val), it.get_ptr()->priv, it.get_ptr()};
-		}
+		if(it.get_ptr() == head) return unshift(forward<U>(val));
+		if(it.get_ptr() == nullptr) return push(forward<U>(val));
+
+		it.get_ptr()->priv = it.get_ptr()->priv->next = new node_t{forward<U>(val), it.get_ptr()->priv, it.get_ptr()};
 		len++;
 		return *this;
 	}
