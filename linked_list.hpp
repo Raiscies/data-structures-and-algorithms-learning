@@ -1,12 +1,14 @@
 #pragma once
 
+#include <limits>
 #include <cstddef>
 #include <utility>
-#include <limits>
-#include <initializer_list>
-#include <functional>
 #include <concepts>
+#include <functional>
 #include <type_traits>
+#include <initializer_list>
+
+namespace rais::study {
 
 using std::size_t;
 using std::numeric_limits;
@@ -15,11 +17,11 @@ using std::less;
 using std::less_equal;
 using std::forward;
 using std::move;
+
+//concepts
 using std::same_as;
 using std::predicate;
 using std::convertible_to;
-
-namespace rais::study {
 
 
 template <typename T>
