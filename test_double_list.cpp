@@ -21,7 +21,14 @@ void test_double_list() {
 	cout << slist << lf;
 	cout << slist.shift() << lf << slist.pop() << lf << slist << lf; 
 	slist.erase(3);
+	cout << slist << lf << "reverse list: \n";
+	slist.reverse();
 	cout << slist << lf;
+	cout << "reverse list2: \n";
+	double_list<int> list2{9, 6, 4, 1, 3, 2, 2, 3, 8, 4, 5 ,22, 18, 6, 5};
+	cout << list2 << lf;
+	list2.reverse();
+	cout << list2 << lf;
 	cout << "finished test\n";
 }
 

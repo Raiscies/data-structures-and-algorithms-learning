@@ -318,6 +318,7 @@ public:
 		len--;
 	}
 
+
 	void clear() {
 		if(head == nullptr) return;
 		node_t* pos = head;
@@ -328,6 +329,24 @@ public:
 		delete pos;
 		head = nullptr;
 		len = 0;
+	}
+
+	void reverse() {
+		if(len <= 1) return;
+
+		node_t* pos = head;
+		do {
+			//swap pos->priv and pos->next
+			node_t* temp = pos->priv;
+			pos->priv = pos->next;
+			pos->next = temp;
+			pos = pos->priv; //point to next node, exectly
+		}while(pos->next != nullptr);
+		pos->next = pos->priv;
+		pos->priv = head;
+		head->next = nullptr;
+		head = pos;
+
 	}
 
 	friend void swap(double_list& a, double_list& b) noexcept{
